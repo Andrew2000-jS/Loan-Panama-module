@@ -3,100 +3,135 @@
         <record id="view_loan_form" model="ir.ui.view">
             <field name="name">loan.form</field>
             <field name="model">loan.loan</field>
-            <field name="type">form</field>
             <field name="arch" type="xml">
                 <form string="Loan">
                     <header>
-                        <button name="action_loan_payment_wizard" type="object" string="Register Payment"/>
+                        <button name="action_loan_payment_wizard" 
+                                type="object" 
+                                string="Registrar pago" 
+                                class="oe_highlight" 
+                                invisible="status in ['draft', 'closed']"/>
                         <field name="status" widget="statusbar" statusbar_visible="draft,active,defaulter,closed"/>
                     </header>
                     <sheet>
-                        <group string="Customer Information" col="2">
-                            <field name="partner_id"/>
-                            <field name="credit_officer"/>
-                            <field name="account"/>
-                            <field name="loan_type"/>
-                            <field name="income_source"/>
+                        <div class="oe_title">
+                            <h1>
+                                <field name="name" placeholder="Ej. PREST-2024-001"/>
+                            </h1>
+                        </div>
+
+                        <group>
+                            <group string="Información del Cliente">
+                                <field name="partner_id" widget="res_partner_many2one" context="{'show_address': 1}" options="{'always_reload': True}"/>
+                                <field name="loan_type"/>
+                                <field name="income_source"/>
+                                <field name="credit_officer"/>
+                            </group>
+                            <group string="Resumen Financiero">
+                                <field name="principal_amount" style="font-weight: bold; color: #2c3e50;"/>
+                                <field name="current_balance" readonly="1" decoration-bf="1" decoration-danger="current_balance > 0"/>
+                                <field name="monthly_installment" decoration-info="1"/>
+                                <field name="payment_frequency" string="Frequencia de pago" />
+                                <field name="term_months"  />
+                            </group>
                         </group>
-                        <group string="Loan Information" col="2">
-                            <field name="name"/>
-                            <field name="term_months"/>
-                            <field name="monthly_installment"/>
-                            <field name="dealer"/>
-                        </group>
-                        <group string="Financial Conditions" col="2">
-                            <field name="principal_amount"/>
-                            <field name="current_balance" readonly="1"/>
-                            <field name="annual_interest_rate"/>
-                            <field name="annual_feci_rate"/>
-                            <field name="feci_threshold"/>
-                            <field name="feci_exempt"/>
-                            <field name="disbursement_date"/>
-                            <field name="next_due_date"/>
-                            <field name="payment_frequency"/>
-                        </group>
-                        <group string="Collateral / Guarantee">
-                            <field name="collateral"/>
-                        </group>
-                        <group string="Notes">
-                            <field name="notes"/>
-                        </group>
+
                         <notebook>
-                            <page string="Amortization / Payments">
-                                <field name="loan_line_ids">
-                                    <list string="Loan Lines" create="0">
+                            <page string="Condiciones y Tasas" name="conditions">
+                                <group>
+                                    <group string="Configuración de Tasas">
+                                        <field name="annual_interest_rate" widget="percentage"/>
+                                        <field name="annual_feci_rate" widget="percentage"/>
+                                    </group>
+                                    <group string="Reglas FECI (Panamá)">
+                                        <field name="feci_threshold"/>
+                                        <field name="feci_exempt"/>
+                                    </group>
+                                </group>
+                                <group string="Fechas Clave">
+                                    <group>
+                                        <field name="disbursement_date"/>
+                                    </group>
+                                    <group>
+                                        <field name="next_due_date" decoration-danger="status == 'defaulter'"/>
+                                    </group>
+                                </group>
+                            </page>
+
+                            <page string="Amortización / Pagos" name="payments">
+                                <field name="loan_line_ids" readonly="1">
+                                    <list decoration-muted="principal_balance == 0">
                                         <field name="movement_date"/>
-                                        <field name="paid_amount"/>
-                                        <field name="feci"/>
-                                        <field name="interest"/>
-                                        <field name="capital_payment"/>
+                                        <field name="paid_amount" sum="Total Pagado"/>
+                                        <field name="interest" sum="Total Interés"/>
+                                        <field name="feci" sum="Total FECI"/>
+                                        <field name="capital_payment" sum="Total Capital"/>
                                         <field name="principal_balance"/>
                                         <field name="next_due_date"/>
-                                        <field name="notes"/>
+                                        <field name="notes" optional="hide"/>
                                     </list>
                                 </field>
                             </page>
-                            <page string="Other Charges">
-                                <field name="other_charge_ids" nolabel="1">
-                                    <list string="Other Charges">
+
+                            <page string="Cargos Adicionales" name="other_charges">
+                                <field name="other_charge_ids">
+                                    <list editable="bottom">
                                         <field name="creation_date"/>
                                         <field name="description"/>
-                                        <field name="amount"/>
-                                        <field name="pending_balance"/>
+                                        <field name="amount" sum="Total Cargos"/>
+                                        <field name="amount_paid" sum="Total Pagado"/>
+                                        <field name="pending_balance" sum="Pendiente"/>
                                         <field name="due_date"/>
                                     </list>
                                 </field>
                             </page>
 
+                            <page string="Garantía y Notas" name="extra">
+                                <group>
+                                    <group string="Detalles de Garantía">
+                                        <field name="collateral" placeholder="Describa la garantía (ej. Vehículo, Finca...)"/>
+                                        <field name="dealer"/>
+                                        <field name="account"/>
+                                    </group>
+                                    <group string="Observaciones">
+                                        <field name="notes" nolabel="1" placeholder="Notas internas..."/>
+                                    </group>
+                                </group>
+                            </page>
                         </notebook>
-
                     </sheet>
                 </form>
             </field>
         </record>
+
         <record id="view_loan_list" model="ir.ui.view">
             <field name="name">loan.list</field>
             <field name="model">loan.loan</field>
-            <field name="type">list</field>
             <field name="arch" type="xml">
-                <list string="Loans">
+                <list string="Loans" decoration-danger="status == 'defaulter'" decoration-success="status == 'closed'" decoration-info="status == 'active'">
                     <field name="name"/>
                     <field name="partner_id"/>
-                    <field name="principal_amount"/>
-                    <field name="current_balance"/>
-                    <field name="annual_interest_rate"/>
-                    <field name="annual_feci_rate"/>
+                    <field name="principal_amount" sum="Total Principal"/>
+                    <field name="current_balance" sum="Total Balance"/>
+                    <field name="annual_interest_rate" widget="percentage"/>
                     <field name="next_due_date"/>
-                    <field name="status"/>
+                    <field name="status" widget="badge" decoration-info="status == 'active'" decoration-success="status == 'closed'" decoration-danger="status == 'defaulter'"/>
                 </list>
             </field>
         </record>
+
         <record id="action_loan" model="ir.actions.act_window">
-            <field name="name">Loans</field>
+            <field name="name">Préstamos</field>
             <field name="res_model">loan.loan</field>
             <field name="view_mode">list,form</field>
+            <field name="help" type="html">
+                <p class="o_view_nocontent_smiling_face">
+                    Crea tu primer préstamo
+                </p>
+            </field>
         </record>
-        <menuitem id="menu_loan_root" name="Loans" sequence="10"/>
-        <menuitem id="menu_loan_management" name="Loan Management" parent="menu_loan_root" action="action_loan"/>
+
+        <menuitem id="menu_loan_root" name="Préstamos" sequence="10"/>
+        <menuitem id="menu_loan_management" name="Gestión de Préstamos" parent="menu_loan_root" action="action_loan"/>
     </data>
 </odoo>
